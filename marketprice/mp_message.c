@@ -1,5 +1,5 @@
 /*
- * Description: 
+ * Description:
  *     History: yang@haipo.me, 2017/04/16, create
  */
 
@@ -229,8 +229,12 @@ static int load_market(redisContext *context, struct market_info *info)
     return 0;
 }
 
-static struct market_info *create_market(const char *market, mpd_t *price = mpd_zero)
+static struct market_info *create_market(const char *market, mpd_t *price)
 {
+ if (price == NULL) {
+        price = mpd_zero;
+    }
+
     struct market_info *info = malloc(sizeof(struct market_info));
     memset(info, 0, sizeof(struct market_info));
     info->name = strdup(market);
@@ -364,7 +368,17 @@ static int init_market(void)
         json_t *item = json_array_get(r, i);
         const char *name = json_string_value(json_object_get(item, "name"));
         log_stderr("init market %s", name);
-        struct market_info *info = create_market(name);
+
+        mpd_t *price = mpd_new(0);
+            if (price == NULL) {
+                log_error("create mpd_t for market %s fail", name);
+                json_decref(r);
+                redisFree(context);
+                return -__LINE__;
+            }
+            struct market_info *info = create_market(name, price);
+            mpd_del(price);
+
         if (info == NULL) {
             log_error("create market %s fail", name);
             json_decref(r);
